@@ -1,6 +1,7 @@
 (
 p = ProxySpace.push(s.boot);
 p.clock = TempoClock.default;
+p.fadeTime = 5;
 )
 
 b = ();
@@ -41,6 +42,8 @@ p = { |name|
 			pan: panWhite,
 			amp: ampWhite)
 	});
+
+    Ndef(name).fadeTime = 5;
 
 	ControlSpec.add(\centerPos, [0, 1], \lin, [0, b[name].numFrames]);
 	ControlSpec.add(\trigger, [0.1, 50], \exp);
@@ -114,6 +117,50 @@ a = { |name|
 };
 )
 
+
+(
+Tdef(\aaa, {
+    var centerWidth, centerPos;
+
+    var semiTone = 2 ** (1.0 / 12.0);
+
+    loop {
+        Ndef('aaa').set(\rate, semiTone**(-1));
+        Ndef('aaa').set(\centerPos, [0.96, 0.96]);
+        exprand(10, 2).wait;
+
+        centerPos = 0.5;
+        centerWidth = rrand(0.01, 0.1);
+
+        Ndef('aaa').set(\centerPos, [max(0.0, centerPos - centerWidth), min(1.0, centerPos + centerWidth)]);
+        Ndef('aaa').set(\rate, (semiTone)**(-6));
+
+        exprand(0.1, 0.4).wait;
+    };
+});
+)
+
+Tdef(\aaa).play;
+
+t.free;
+
+(
+    var trigLo, trigHi, durLo, durHi, durRate;
+    trigLo = 20;
+    trigHi = 30;
+    durRate = 10;
+    durLo = durRate / trigHi;
+    durHi = durRate / trigLo;
+    Ndef('aaa').set(\trig, [trigLo, trigHi]);
+    Ndef('aaa').set(\dur, [durLo, durHi]);
+)
+
+Ndef('aaa').gui;
+Ndef('aaa').end;
+Ndef('aaa').play;
+
+Ndef('aaa').asCode;
+
 b['aaa'].duration;
 
 b[\aaa];
@@ -121,7 +168,6 @@ b[\aaa];
 l.value('aaa');
 p.value('aaa');
 g.value('aaa');
-NdefGui(Ndef(\aaa), options: NdefGui.big);
 
 (
 Ndef(\dfm, { |freq = 1000, res = 0.1|
