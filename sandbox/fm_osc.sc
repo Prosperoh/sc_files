@@ -82,3 +82,45 @@ Pdef(\track).stop;
 
 Pdef(\fm1).stop;
 Pdef(\fm2).stop;
+
+
+ProxySpace.push(s.boot);
+
+
+// With Ndef
+(
+Ndef(\fmlong, {
+	arg freq = 500, mRatio = 1, cRatio = 1, index = 1,
+	amp = 0.2, pan = 0, phase = 0;
+
+	var car, mod, modAmp;
+
+	modAmp = freq * mRatio; // normalized amplitude, use index to change amplitude
+	mod = SinOsc.ar(freq * mRatio, mul: freq * mRatio * index);
+
+	car = SinOsc.ar(freq * cRatio + mod, phase) * amp;
+	car = Pan2.ar(car, pan);
+
+	car
+});
+)
+
+Ndef(\fmlong).clear;
+
+(
+Ndef(\fmlong)[1] = \set -> Pdef(\fmlong);
+)
+
+(
+Pdef(\fmlong, Pbind(
+	\dur, 1/16,
+	\stretch, t,
+	\index, Pstutter(4, Prand([1, 3, 6, 10], inf)),
+	\amp, 0.2,
+));
+)
+
+{ SinOsc.ar([440, 442], mul: 0.1) }.play;
+
+Ndef(\fmlong).play;
+Ndef(\fmlong).stop;
