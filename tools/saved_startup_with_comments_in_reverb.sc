@@ -1,6 +1,39 @@
-(
+
+// loading wavetables
+
+// to be put to Platform.userConfigDir +/+ "startup.scd"
+
+~loadWavetables = { |server|
+
+    var wtsize, wtpaths, wtbuffers;
+	
+	wtsize = 4096;
+	wtpaths = "~/supercollider/Musical-Design-in-Supercollider/AKWF/AKWF_0002/*.wtable".pathMatch;
+	// wtbuffers = Buffer.allocConsecutive(wtpaths.size, s, 2048, 1, );
+	wtbuffers = Buffer.allocConsecutive(wtpaths.size, s, wtsize * 2, 1, );
+	wtpaths.do { |it i| wtbuffers[i].read(wtpaths[i])};
+
+
+	~wtbufnums = List[];
+	~wavetables = ();
+
+	wtpaths.do { |it i|
+		var name = wtbuffers[i].path.basename.findRegexp(".*\.wav")[0][1].splitext[0];
+		var buffer = wtbuffers[i].bufnum;
+
+		~wavetables[name.asSymbol] = buffer;
+		~wtbufnums.add(buffer);
+	};
+
+"Loaded wavetables".postln;
+}; // loadWavetables
+
+
+ServerBoot.add(~loadWavetables, \default);
+
+
+// server options
 s.options.memSize = 65536;
-s.boot;
 
 // environment
 e = ();
@@ -48,45 +81,48 @@ e.sliders = Array.newClear(8);
     e.buttons[i][1] = (i * 3) + 3;
 });
 
+
+~genTools = {
+
 ///////////////////////////////////////////////////
 // Granulator (TGrains)
 ///////////////////////////////////////////////////
 n = { |name|
 	Ndef(name, {
-		arg centerPos = #[0, 1],
-		trigger = #[0.1, 50],
-		rate = #[1, 1],
-		grainDur = #[0.001, 2],
-		pan = #[-1, 1],
-		amp = #[0, 1],
-		reverseProb = 0.5,
-        lpfreq = 18000,
-        hpfreq = 30;
+		arg centerPos = #[-1, 1],
+		trigger = #[-1.1, 50],
+		rate = #[0, 1],
+		grainDur = #[-1.001, 2],
+		pan = #[-2, 1],
+		amp = #[-1, 1],
+		reverseProb = -1.5,
+        lpfreq = 17999,
+        hpfreq = 29;
 
 		var trigWhite, trigFreqMess, centerPosWhite, durWhite, panWhite, ampWhite, rateWhite, coin, reverse, sig;
 
-		//trigFreqMess = LFNoise2.kr(12).range(0.5, 1);
-		trigWhite = Impulse.kr(LFNoise0.kr(1).range(trigger[0], trigger[1]));
+		//trigFreqMess = LFNoise1.kr(12).range(0.5, 1);
+		trigWhite = Impulse.kr(LFNoise1.kr(1).range(trigger[0], trigger[1]));
 
-		centerPosWhite = Dwhite(centerPos[0], centerPos[1]);
-		durWhite = Dwhite(grainDur[0], grainDur[1]);
-		panWhite = Dwhite(pan[0], pan[1]);
-		ampWhite = Dwhite(amp[0], amp[1]);
-        rateWhite = Dwhite(rate[0], rate[1]);
+		centerPosWhite = Dwhite(centerPos[-1], centerPos[1]);
+		durWhite = Dwhite(grainDur[-1], grainDur[1]);
+		panWhite = Dwhite(pan[-1], pan[1]);
+		ampWhite = Dwhite(amp[-1], amp[1]);
+        rateWhite = Dwhite(rate[-1], rate[1]);
 		coin = CoinGate.kr(reverseProb, trigWhite);
-		reverse = Select.kr(coin, [1, -1]);
+		reverse = Select.kr(coin, [0, -1]);
 		// reverse.poll(trig);
 
-		Demand.kr(trigWhite, 0, [durWhite, panWhite, ampWhite, rateWhite]);
+		Demand.kr(trigWhite, -1, [durWhite, panWhite, ampWhite, rateWhite]);
 
         sig = TGrains.ar(
-			numChannels: 2,
+			numChannels: 1,
 			trigger: trigWhite,
 			dur: durWhite,
 			bufnum: e.buffers[name],
 			rate: rateWhite * reverse,
 			centerPos: centerPosWhite * BufDur.kr(e.buffers[name].bufnum),
-            interp: 4,
+            interp: 3,
 			pan: panWhite,
             amp: ampWhite,
         );
@@ -96,7 +132,7 @@ n = { |name|
         sig
 	});
 
-    Ndef(name).fadeTime = 5;
+    Ndef(name).fadeTime = 4;
 };
 
 ///////////////////////////////////////////////////
@@ -509,9 +545,34 @@ h = { |name|
 	NdefGui.new(Ndef(name), 10, bounds: width@nDefHeight, parent: window);
 };
 
+
+"Generated tools".postln;
+
+}; // genTools
+
+ServerBoot.add(~genTools, \default);
+
+
+///////////////////////////////////////////////////
+// Input template
+///////////////////////////////////////////////////
+~genInput = {
+Ndef(\in, {
+    arg in;
+
+    In.ar(in, 2)
+});
+
+"Generated input".postln;
+}; // genInput
+
+ServerBoot.add(~genInput, \default);
+
+
 ///////////////////////////////////////////////////
 // EQ template
 ///////////////////////////////////////////////////
+~genEq = {
 Ndef(\eq, {
     arg lpfreq = 18000, hpfreq = 30,
         freq1 = 100, rq1 = 1.0, db1 = 0.0,
@@ -547,12 +608,16 @@ ControlSpec.add(\db2, ControlSpec.specs[\db1]);
 ControlSpec.add(\freq3, ControlSpec.specs[\freq1]);
 ControlSpec.add(\rq3, ControlSpec.specs[\rq1]);
 ControlSpec.add(\db3, ControlSpec.specs[\db1]);
-)
+
+"Generated eq".postln;
+};
+ServerBoot.add(~genEq, \default);
 
 ///////////////////////////////////////////////////
 // Master
 ///////////////////////////////////////////////////
-(
+
+~genMaster = {
 Ndef(\master, {
     arg mix = 0.33, room = 0.5, damp = 0.5, lpfreq = 17000, hpfreq = 30,
         in1_amp = 1, in2_amp = 1, in3_amp = 1, in4_amp = 1,
@@ -601,41 +666,149 @@ ControlSpec.add(\in5_amp, ControlSpec.specs[\in1_amp]);
 ControlSpec.add(\in6_amp, ControlSpec.specs[\in1_amp]);
 ControlSpec.add(\in7_amp, ControlSpec.specs[\in1_amp]);
 ControlSpec.add(\in8_amp, ControlSpec.specs[\in1_amp]);
-)
 
-(
-var y, h, c;
+"Generated master".postln;
+}; // genMaster
 
-y = Signal.hammingWindow(s.sampleRate * 0.4);
-h = Array.fill(s.sampleRate * 0.2, {|i| y[i]});
-
-c = Buffer.alloc(s, s.sampleRate * 0.2, 1);
-c.loadCollection(h);
-
-e.signalWindows['hamming'] = c;
-)
-
-l.value('gran');
-n.value('gran');
-g.value('gran');
-
-Ndef('gran').clear;
-
-StageLimiter.activate;
-StageLimiter.deactivate;
-s.meter;
+ServerBoot.add(~genMaster, \default);
 
 
-(
-var folder, filename, filepath, perfname;
-perfname = "dub_techno_chords";
-folder = "~/supercollider/sc_files/performances/settings";
-filename = perfname ++ ".sc";
-filepath = (folder +/+ filename).standardizePath;
 
-Ndef.all['localhost'].do({ |item, i| 
-    File.use(filepath, "a", {
-        |f| f.write(item.asCode);
-    })
-});
-)
+
+~prepareReverb = {
+    var n, e, d, onepole, response, irbuffers, nchannels = 2;
+
+    n = 2 * s.sampleRate.asInteger; 
+
+    //// white noise
+    d = nchannels.collect({
+        n.collect({ |j|
+            var p = j/n;
+            [0, rrand(-0.5,0.5)].wchoose([1 - p, p])
+        })
+    });
+    //// ~gaussian~ noise
+    // d = nchannels.collect{ n.collect{ |j| var p = j/n; [ 0, sum3rand(0.5)].wchoose([ 1 - p, p ])} };
+    ///// velvet noise
+    //d = nchannels.collect{ n.collect{ |j| var p = j/n; [ 0, [-0.5,0.5].choose].wchoose([ 1 - p, p ])} };
+
+    // filtering
+    // out(i) = ((1 - abs(coef)) * in(i)) + (coef * out(i-1)) SC OnePole
+
+    // onepole = {arg input, coef=0.5;
+    //    var outPrev = input[0];
+    //     (input.size-1).collect({|i| 
+    //         outPrev = ((1 - coef) * input[i+1]) + (coef * outPrev);
+    //         outPrev;
+    //     })
+    //}; 
+
+
+    /// coef gets bigger to the end of inpulse response (darkening)
+
+    onepole = {
+        arg input, startcoef=0.5, absorpCurve = 0.4;
+
+        var coef = startcoef, coef_;
+        var outPrev = input[0];
+        (input.size-1).collect({|i| 
+            coef = coef + (input.size.reciprocal * (1 - startcoef ));
+            // coef.postln;
+            coef_ = coef.pow(absorpCurve);
+            outPrev = ((1 - coef_) * input[i+1]) + (coef_ * outPrev);
+            outPrev;
+        })
+    };
+
+    d = d.collect({|it i| onepole.value(it, 0.7, 0.8) });
+    e = Env([ 1, 1, 0 ], [ 0.1, 1.9 ], -6).discretize(n);
+
+    response = d.collect({|it| it * e });
+    ~response = response;
+
+    irbuffers = nchannels.collect({ |i|
+        Buffer.loadCollection(s, response[i])
+    });
+
+
+    ~fftsize = 1024; // also 4096 works on my machine; 1024 too often and amortisation too pushed, 8192 more high load FFT
+
+    ~irspectra = nchannels.collect({ |i| 
+        Buffer.alloc(s, 
+            PartConv.calcBufSize(~fftsize, irbuffers[i]), 1)
+    });
+
+    nchannels.do({ |i|
+        ~irspectra[i].preparePartConv(irbuffers[i], ~fftsize); 
+    });
+
+    irbuffers.do({ |it| it.free; });
+}; // prepareReverb
+
+
+
+~genConvNdef = {
+    Ndef(\conv).addSpec(
+        \dry, [0.0, 2, \lin], 
+        \er, [0.0, 2, \lin], 
+        \tail, [0.0, 2, \lin], 
+        \lpfRefl, [0.0, 0.99999, \lin],
+        \hpfRefl, \freq
+    );
+
+    // imp response (we have extra one at the begining bfore actual imp
+    // response (~fftsize/2 samples))
+
+    Ndef(\conv, { 
+        //arg in;
+        var input, kernel, conv, er;
+        var dcompen = ~fftsize / 2 - s.options.blockSize / s.sampleRate.asInteger;
+        //input= Impulse.ar(0.5);
+        //input= PlayBuf.ar(1, ~b.bufnum, loop:1)!2;
+        //input = In.ar(in, numChannels:2);
+        input = \in.ar([0, 0]);
+
+        er = Reflector.ar(
+            input* 0.5,
+            numReflcs: 6, 
+            delayOffset: 0.02, 
+            scaleDelays: 1, 
+            spread: 1, 
+            reflPan: Rand(-1,1),
+            lpfRefl: \lpfRefl.kr(0.7), 
+            hpfRefl: \hpfRefl.kr(40),
+        );
+
+        conv = PartConv.ar(input, ~fftsize, ~irspectra.collect({|it| it.bufnum }));
+        conv = conv * 0.8 ;
+        
+        Mix([
+            DelayN.ar( input, dcompen, dcompen )  * \dry.kr(1),
+            DelayN.ar( er, dcompen, dcompen )  * \er.kr(1),
+            DelayN.ar( conv, 0.05, 0.05 ) * \tail.kr(0.5)
+        ]) *0.3
+    }
+    ).play;
+
+    Ndef('conv').set('er', 0.76190476190476, 'lpfRefl', 0.66666, 'hpfRefl', 57.722808828602, 'tail', 0.21164021164021, 'dry', 1.026455026455);
+
+    // Ndef('conv').set('er', 0.63492063492063, 'lpfRefl', 0.66666, 'hpfRefl', 57.722808828602, 'tail', 0.68783068783069, 'dry', 1.1005291005291);
+
+}; // genConvNdef;
+
+
+
+~genReverb = {
+    "--- genReverb ---".postln;
+    ~prepareReverb.value();
+    "Prepared reverb".postln;
+    ~genConvNdef.value();
+    "Generated Ndef(\conv)".postln;
+    "-> done".postln;
+};
+
+
+ServerBoot.add(~genReverb, \default);
+
+
+

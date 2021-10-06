@@ -1,0 +1,120 @@
+(
+Ndef('frechigh').set('trigger', [ 3.4131012453668, 5.4656779371547 ], 'pan', [ -0.49171270718232, 0.60220994475138 ], 'rate', [ 0.52440590093881, 0.52440590093881 ], 'centerPos', [ 0.043811701484095, 0.87666658426448 ], 'envBufNum', 20, 'reverseProb', 0.0, 'hpfreq', 1240.9296621516, 'fadeTime', 5, 'lpfreq', 9628.7668600903);
+Ndef('frec').set('trigger', [ 0.22287753627442, 0.38522133841897 ], 'fadeTime', 5, 'grainDur', [ 0.030646112025125, 0.61712540003738 ], 'centerPos', [ 0.026665360501567, 0.95666634012539 ], 'envBufNum', 18);
+Ndef('first').set('stretchMultiplier', 1.0, 'pan', -0.0024449877750611, 'stretch', 77.184583032126, 'pos', [ 0.0083329826776071, 0.67333333333333 ], 'wipe', 0.29095354523227, 'hpfreq', 96.953210100917, 'noteShift', -12.0, 'lpfreq', 18000.0);
+Ndef('frecfx').set('trig', 0.0052910052910053, 'in1_amp', 0.50793650793651, 'damp', 0.28042328042328, 'room', 0.1005291005291, 'in1', Ndef('frec'), 'in2', Ndef('frechigh'), 'wipe', 1.0, 'mix', 0.83068783068783);
+);
+(
+Ndef('frechigh', { | centerPos = [ 0, 1 ], trigger = [ 0.1, 50 ], rate = [ 1, 1 ], grainDur = [ 0.001, 2 ], pan = [ -1, 1 ], reverseProb = 0.5, envBufNum = -1, lpfreq = 18000, hpfreq = 30 | "open Function" });
+Ndef('frechigh').set('trigger', [ 3.4131012453668, 5.4656779371547 ], 'pan', [ -0.5, 0.5 ], 'rate', [ 0.52440590093881, 0.52440590093881 ], 'centerPos', [ 0.043811701484095, 0.87666658426448 ], 'envBufNum', 5, 'reverseProb', 0.0, 'hpfreq', 1240.9296621516, 'fadeTime', 5, 'lpfreq', 9628.7668600903);
+);
+(
+Ndef('eq', {
+    arg lpfreq = 18000, hpfreq = 30,
+        freq1 = 100, rq1 = 1.0, db1 = 0.0,
+        freq2 = 1000, rq2 = 1.0, db2 = 0.0,
+        freq3 = 10000, rq3 = 1.0, db3 = 0.0;
+
+    var sig;
+
+    sig = \in.ar([0, 0]);
+
+    // eq1
+    sig = BPeakEQ.ar(sig, freq1, rq1, db1);
+
+    // eq2
+    sig = BPeakEQ.ar(sig, freq2, rq2, db2);
+
+    // eq3
+    sig = BPeakEQ.ar(sig, freq3, rq3, db3);
+
+    // low pass
+    sig = BLowPass.ar(sig, lpfreq, 1.5);
+
+    // high pass
+    sig = BHiPass.ar(sig, hpfreq, 1.5);
+
+});
+);
+(
+Ndef('loophigher', { | pan = 0, width = 1, pos = [ 0, 1 ], stretch = 50, stretchMultiplier = 1, noteShift = 0, wipe = 0, lpfreq = 18000, hpfreq = 30 | "open Function" });
+Ndef('loophigher').set('stretchMultiplier', 1.0, 'pan', 0, 'stretch', 32.801403040926, 'pos', [ 0.0099992986885476, 0.66333263202188 ], 'wipe', 0.29095354523227, 'hpfreq', 96.953210100917, 'noteShift', 5.0, 'lpfreq', 18000.0);
+);
+(
+Ndef('frec', { | centerPos = [ 0, 1 ], trigger = [ 0.1, 50 ], rate = [ 1, 1 ], grainDur = [ 0.001, 2 ], pan = [ -1, 1 ], reverseProb = 0.5, envBufNum = -1, lpfreq = 18000, hpfreq = 30 | "open Function" });
+Ndef('frec').set('trigger', [ 0.22287753627442, 0.38522133841897 ], 'fadeTime', 5, 'grainDur', [ 0.030646112025125, 0.61712540003738 ], 'centerPos', [ 0.026665360501567, 0.95666634012539 ], 'envBufNum', 5);
+);
+(
+Ndef('master', {
+    arg mix = 0.33, room = 0.5, damp = 0.5, lpfreq = 17000, hpfreq = 30,
+        in1_amp = 1, in2_amp = 1, in3_amp = 1, in4_amp = 1,
+        in5_amp = 1, in6_amp = 1, in7_amp = 1, in8_amp = 1;
+
+    var master, mode;
+
+    // mix input
+    master = Mix([
+        \in1.ar([0, 0]) * in1_amp,
+        \in2.ar([0, 0]) * in2_amp,
+        \in3.ar([0, 0]) * in3_amp,
+        \in4.ar([0, 0]) * in4_amp,
+        \in5.ar([0, 0]) * in5_amp,
+        \in6.ar([0, 0]) * in6_amp,
+        \in7.ar([0, 0]) * in7_amp,
+        \in8.ar([0, 0]) * in8_amp
+    ]);
+
+    // reverb
+    master = FreeVerb.ar(master, mix, room, damp);
+
+    // low pass
+    master = BLowPass.ar(master, lpfreq, 1.5);
+
+    // high pass
+    master = BHiPass.ar(master, hpfreq, 1.5);
+
+    // remove DC offset
+    master = LeakDC.ar(master);
+
+    master
+});
+Ndef('master').set('room', 0.92063492063492, 'in2_amp', 0.44444444444444, 'in1_amp', 0.95238095238095, 'in1', Ndef('first'), 'in3_amp', 0.20634920634921, 'in2', Ndef('frecfx'), 'in3', Ndef('noise'), 'mix', 0.25396825396825);
+Ndef('master').play;
+);
+(
+Ndef('noise', { | centerPos = [ 0, 1 ], trigger = [ 0.1, 50 ], rate = [ 1, 1 ], grainDur = [ 0.001, 2 ], pan = [ -1, 1 ], amp = [ 0, 1 ], reverseProb = 0.5, lpfreq = 18000, hpfreq = 30 | "open Function" });
+Ndef('noise').set('trigger', [ 39.257501136548, 53.965869100582 ], 'hpfreq', 7153.3965395423, 'fadeTime', 5, 'amp', [ 0.17127071823204, 0.88674033149171 ], 'rate', [ 0.83355042776946, 0.83355042776946 ], 'grainDur', [ 1.0878846309393, 1.5222455725267 ], 'centerPos', [ 0.30386740331492, 0.69889502762431 ], 'lpfreq', 13583.343390283);
+);
+(
+Ndef('first', { | pan = 0, width = 1, pos = [ 0, 1 ], stretch = 50, stretchMultiplier = 1, noteShift = 0, wipe = 0, lpfreq = 18000, hpfreq = 30 | "open Function" });
+Ndef('first').set('stretchMultiplier', 1.0, 'pan', 0, 'stretch', 77.184583032126, 'pos', [ 0.0083329826776071, 0.67333333333333 ], 'wipe', 0.29095354523227, 'hpfreq', 96.953210100917, 'noteShift', -12.0, 'lpfreq', 18000.0);
+);
+(
+Ndef('frecfx', {
+    arg mix = 0.33, room = 0.5, damp = 0.5, wipe = 0.0,
+        width = 0.5, trig = 0,
+        in1_amp = 1, in2_amp = 1, in3_amp = 1, in4_amp = 1;
+
+    var sig, fft, amp;
+
+    sig = Mix([
+        \in1.ar([0, 0]) * in1_amp,
+        \in2.ar([0, 0]) * in2_amp,
+        \in3.ar([0, 0]) * in3_amp,
+        \in4.ar([0, 0]) * in4_amp
+    ]);
+
+    //fft = FFT(Array.fill(2, { LocalBuf(fftSize, 1) }), sig);
+    //fft = PV_BinScramble(fft, wipe, width, trig);
+    //sig = IFFT(fft);
+
+    // reverb
+    sig = FreeVerb.ar(sig, mix, room, damp);
+
+    // noise amp
+    amp = LFNoise0.kr(0.5).range(0, 1);
+
+    sig * amp
+});
+Ndef('frecfx').set('trig', 0.0052910052910053, 'in1_amp', 0.50793650793651, 'damp', 0.28042328042328, 'room', 0.80952380952381, 'in1', Ndef('frec'), 'in2', Ndef('frechigh'), 'wipe', 1.0, 'mix', 0.22751322751323);
+);
