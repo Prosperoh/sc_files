@@ -2,9 +2,12 @@
 }
 
 s.boot;
+StageLimiter.activate;
 
 (
 Ndef(\test, {
+    arg note = 0;
+
     var sig, trig, env, envSig, pan, chord, basenote, octave, rq, stereoCutoff, bpm, freqImpulse;
 
     bpm = 140;
@@ -20,7 +23,7 @@ Ndef(\test, {
         + Impulse.ar(freqImpulse, phase: (2/6))
         + Impulse.ar(freqImpulse, phase: (5/6)) 
         + Dust.ar(freqImpulse * 0.01);
-        */
+    */
 
     envSig = LFNoise0.kr(5.0);
     
@@ -30,7 +33,7 @@ Ndef(\test, {
     );
 
     octave = 3;
-    basenote = octave * 12 + 2;
+    basenote = octave * 12 + note;
     //chord = [0, 3, 7, 11];
     //chord = [0, 4 + 24, 9 + 12, 11];
     chord = [0, 3, 7];
@@ -54,21 +57,21 @@ Ndef(\test, {
         //sig = RLPF.ar(preSig, freq * SinOsc.kr(0.6).range(2.75, 3.5),
         //    rq: SinOsc.kr(0.6).range(0.02, 0.15));
         
-        sig = RLPF.ar(preSig, freq * 3.5,
+        sig = RLPF.ar(preSig,
+            freq: freq * SinOsc.kr(0.25).range(2.8, 4.0),
             rq: SinOsc.kr(0.6).range(0.01, 0.1));
-        sig = sig + (SinOsc.kr(0.3).range(0.05, 0.2) * RHPF.ar(preSig, freq * 8.0, rq: 0.8));
+        sig = sig + (2 * SinOsc.kr(0.3).range(0.05, 0.2) * RHPF.ar(preSig, freq * 8.0, rq: 0.8));
         sig = sig * 1.0;
         sig
     }));
 
-    rq = 0.7;
+    rq = 1.0;
 
     sig = BPF.ar(sig,
         //freq: LFNoise1.kr(freqImpulse * 8).exprange(20, 550),
         freq: SinOsc.kr(freqImpulse * (7/3)).exprange(20, 550),
         rq: rq);
     sig = sig * EnvGen.ar(env, gate: trig);
-
 
     // This has a weird effect on the pitch
     /*
@@ -78,16 +81,16 @@ Ndef(\test, {
     );
     */
 
-    sig = 0.2 * sig + CombC.ar(sig,
+    sig = 0.3 * sig + CombC.ar(sig,
         maxdelaytime: 60 / (bpm * (2/3)),
         delaytime: 60 / (bpm * (6/3)),
         decaytime: 1.5,
     );
 
-    //sig = (0.5 * sig) + FreeVerb.ar(sig);
+    //sig = (0.5 * sig) + Fresupercollider synchronize impulse between synthdefseVerb.ar(sig);
     //sig = sig + 0.05 * HPF.ar(GVerb.ar(sig), 500);
 
-    sig = FreeVerb.ar(sig, room: 0.2);
+    sig = FreeVerb.ar(sig, room: 0.5);
 
     pan = LFNoise1.kr(10.0).range(-1, 1);
     stereoCutoff = 220;
@@ -110,12 +113,55 @@ z = NdefMixer(s);
 Ndef(\test).play;
 Ndef(\test).stop;
 
+(
+Ndef(\a, {
+    var sig, freq;
+
+    //freq = MouseX.kr().exprange(50, 8000);
+    freq = 180;
+
+    sig = 4.collect({
+        var sig, env, envTrig, modratio, modindex;
+
+        //modratio = LFNoise1.kr(0.8).exprange(1, 1) * 1000;
+        //modratio = LFNoise1.kr(0.8).exprange(998, 1002);
+        modratio = 1000;
+        //modindex = LFNoise2.kr(0.8).exprange(10, 500);
+        modindex = LFNoise2.kr(0.8).exprange(400, 500);
+
+        envTrig = Dust.ar(4.0);
+        //envTrig = Impulse.ar(1.0);
+        env = EnvGen.ar(Env.perc(0.01, 1.0), gate: envTrig);
+
+        sig = PMOsc.ar(freq, freq * modratio, modindex, 0) * env;
+        sig = sig + (PinkNoise.ar() * 0.2) * env;
+        //sig = BPF.ar(sig, 2500 * LFNoise1.kr(0.2).range(0.9, 0.9.reciprocal), 0.02);
+        sig = BPF.ar(sig, 5000 * LFNoise1.kr(0.2).range(0.9, 0.9.reciprocal), 0.02);
+        sig = HPF.ar(sig, freq * 3);
+        sig * 2
+    });
+
+    sig = Splay.ar(sig);
+
+    sig = FreeVerb.ar(sig, mix: 0.33, room: 1.0);
+
+    sig
+});
+)
+
+Ndef(\a).play;
+Ndef(\a).stop;
+
 s.quit;
 
 (
 x.stop;
 x = Synth(\test, [
     \freq, 50,
+~loadToMidi.value(\posMove,
+    0, 0.2, \lin, 0.1,
+    m.elAt('kn', '3', '1')
+);
     \amp, 1,
 ]);
 )
@@ -130,5 +176,113 @@ Pdef(\p, Pbind(
 
 Pdef(\p).stop;
 
+(
+MKtl.find('midi');
+m = MKtl(\akai, "akai-midimix");
+)
 
-StageLimiter.activate;
+MKtl.find();
+m = MKtl(\akai, "akai-midimix");
+
+m.elAt('sl', '1');
+
+(
+~loadToMidiWidescthNdef.value(\posMove,
+    0, 0.2, \lin, 0.1,
+    m.elAt('kn', '3', '1')
+);
+)
+
+(
+Ndef(\b, {
+    arg modratio = 1, modindex = 1, freq = 180;
+
+    var sig;
+
+    sig = 4.collect({
+        var sig, env, envTrig, rq;
+
+        //modratio = LFNoise1.kr(0.8).exprange(1, 1) * 1000;
+        //modratio = LFNoise1.kr(0.8).exprange(998, 1002);
+        //modindex = LFNoise2.kr(0.8).exprange(10, 500);
+        
+        rq = 0.1;
+
+        envTrig = Dust.ar(4.0);
+        //envTrig = Impulse.ar(1.0);
+        env = EnvGen.ar(Env.perc(0.01, 1.0), gate: envTrig);
+
+        sig = PMOsc.ar(freq, freq * modratio, modindex, 0) * env;
+        sig = sig + (PinkNoise.ar() * 0.3) * env;
+        //sig = BPF.ar(sig, 2500 * LFNoise1.kr(0.2).range(0.9, 0.9.reciprocal), 0.02);
+        sig = BPF.ar(sig, 5000 * LFNoise1.kr(0.2).range(0.9, 0.9.reciprocal),
+            rq);
+        sig = HPF.ar(sig, freq * 2);
+        sig * 2
+    });
+
+    sig = Splay.ar(sig);
+
+    sig = FreeVerb.ar(sig, mix: 0.33, room: 1.0);
+
+    sig
+});
+)
+
+Ndef(\b).play;
+
+(
+var button = m.elAt('kn', '3', '1');
+button.action_({ |el|
+    var diff = 0.1;
+    var baseval  = 1000;
+    var modratio = ControlSpec.new(baseval - diff, baseval + diff, \lin).map(el.value);
+    ('modratio: ' ++ modratio).postln;
+    Ndef(\b).set(\modratio, modratio);
+});
+button.elemDesc.label = 'modratio';
+
+button = m.elAt('kn', '2', '1');
+button.action_({ |el|
+    var modindex = ControlSpec.new(0.01, 100, \exp).map(el.value);
+    ('modindex: ' ++ modindex).postln;
+    Ndef(\b).set(\modindex, modindex);
+});
+button.elemDesc.label = 'modindex';
+
+button = m.elAt('kn', '1', '1');
+button.action_({ |el|
+    var freq = ControlSpec.new(80, 280, \exp).map(el.value);
+    ('freq: ' ++ freq).postln;
+    Ndef(\b).set(\freq, freq);
+});
+button.elemDesc.label = 'freq';
+)
+
+
+(
+var button = m.elAt('kn', '3', '1');
+button.action_({ |el|
+    var note = (12 * el.value).floor;
+    note.postln;
+    Ndef(\test).set(\note, note);
+});
+button.elemDesc.label = 'chord dub';
+)
+m.gui;
+
+Ndef(\test).stop;
+
+NdefMixer(s);
+
+MKtlGUI;
+
+Ndef(\b).play;
+Ndef(\b).stop;
+
+MKtl;
+
+m.gui;
+
+
+desc
