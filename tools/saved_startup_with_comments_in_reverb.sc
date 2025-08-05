@@ -6,7 +6,7 @@
 ~loadWavetables = { |server|
 
     var wtsize, wtpaths, wtbuffers;
-	
+
 	wtsize = 4096;
 	wtpaths = "~/supercollider/Musical-Design-in-Supercollider/AKWF/AKWF_0002/*.wtable".pathMatch;
 	// wtbuffers = Buffer.allocConsecutive(wtpaths.size, s, 2048, 1, );
@@ -261,7 +261,7 @@ e.buffers['envBuf'].loadCollection(e.buffers['envSignal']);
 // PaulStretch Ndef
 ///////////////////////////////////////////////////
 e.sb['pstretch'] = { |name|
-    Ndef(name, { 
+    Ndef(name, {
         arg pan = 0,
             width = 1,
             pos = #[0, 1],
@@ -324,14 +324,14 @@ e.sb['pstretch'] = { |name|
         grains = [
             GrainBuf.ar(numChannels: 1,
                 trigger: trig,
-                dur: trigPeriod, 
+                dur: trigPeriod,
                 sndbuf: bufnum,
                 rate: rate,
-                pos: posVal, 
+                pos: posVal,
                 envbufnum: envBufnum),
             GrainBuf.ar(numChannels: 1,
                 trigger: trig,
-                dur: trigPeriod, 
+                dur: trigPeriod,
                 sndbuf: bufnum,
                 rate: rate,
                 pos: posNextVal,
@@ -381,7 +381,7 @@ e.sb['pstretch'] = { |name|
 };
 
 e.sb['pstretch_singledir'] = { |name|
-    Ndef(name, { 
+    Ndef(name, {
         arg pan = 0,
             width = 1,
             pos = #[0, 1],
@@ -439,14 +439,14 @@ e.sb['pstretch_singledir'] = { |name|
         grains = [
             GrainBuf.ar(numChannels: 1,
                 trigger: trig,
-                dur: trigPeriod, 
+                dur: trigPeriod,
                 sndbuf: bufnum,
                 rate: rate,
-                pos: posVal, 
+                pos: posVal,
                 envbufnum: envBufnum),
             GrainBuf.ar(numChannels: 1,
                 trigger: trig,
-                dur: trigPeriod, 
+                dur: trigPeriod,
                 sndbuf: bufnum,
                 rate: rate,
                 pos: posNextVal,
@@ -678,7 +678,7 @@ ServerBoot.add(~genMaster, \default);
 ~prepareReverb = {
     var n, e, d, onepole, response, irbuffers, nchannels = 2;
 
-    n = 2 * s.sampleRate.asInteger; 
+    n = 2 * s.sampleRate.asInteger;
 
     //// white noise
     d = nchannels.collect({
@@ -697,11 +697,11 @@ ServerBoot.add(~genMaster, \default);
 
     // onepole = {arg input, coef=0.5;
     //    var outPrev = input[0];
-    //     (input.size-1).collect({|i| 
+    //     (input.size-1).collect({|i|
     //         outPrev = ((1 - coef) * input[i+1]) + (coef * outPrev);
     //         outPrev;
     //     })
-    //}; 
+    //};
 
 
     /// coef gets bigger to the end of inpulse response (darkening)
@@ -711,7 +711,7 @@ ServerBoot.add(~genMaster, \default);
 
         var coef = startcoef, coef_;
         var outPrev = input[0];
-        (input.size-1).collect({|i| 
+        (input.size-1).collect({|i|
             coef = coef + (input.size.reciprocal * (1 - startcoef ));
             // coef.postln;
             coef_ = coef.pow(absorpCurve);
@@ -733,13 +733,13 @@ ServerBoot.add(~genMaster, \default);
 
     ~fftsize = 1024; // also 4096 works on my machine; 1024 too often and amortisation too pushed, 8192 more high load FFT
 
-    ~irspectra = nchannels.collect({ |i| 
-        Buffer.alloc(s, 
+    ~irspectra = nchannels.collect({ |i|
+        Buffer.alloc(s,
             PartConv.calcBufSize(~fftsize, irbuffers[i]), 1)
     });
 
     nchannels.do({ |i|
-        ~irspectra[i].preparePartConv(irbuffers[i], ~fftsize); 
+        ~irspectra[i].preparePartConv(irbuffers[i], ~fftsize);
     });
 
     irbuffers.do({ |it| it.free; });
@@ -749,9 +749,9 @@ ServerBoot.add(~genMaster, \default);
 
 ~genConvNdef = {
     Ndef(\conv).addSpec(
-        \dry, [0.0, 2, \lin], 
-        \er, [0.0, 2, \lin], 
-        \tail, [0.0, 2, \lin], 
+        \dry, [0.0, 2, \lin],
+        \er, [0.0, 2, \lin],
+        \tail, [0.0, 2, \lin],
         \lpfRefl, [0.0, 0.99999, \lin],
         \hpfRefl, \freq
     );
@@ -759,7 +759,7 @@ ServerBoot.add(~genMaster, \default);
     // imp response (we have extra one at the begining bfore actual imp
     // response (~fftsize/2 samples))
 
-    Ndef(\conv, { 
+    Ndef(\conv, {
         //arg in;
         var input, kernel, conv, er;
         var dcompen = ~fftsize / 2 - s.options.blockSize / s.sampleRate.asInteger;
@@ -770,18 +770,18 @@ ServerBoot.add(~genMaster, \default);
 
         er = Reflector.ar(
             input* 0.5,
-            numReflcs: 6, 
-            delayOffset: 0.02, 
-            scaleDelays: 1, 
-            spread: 1, 
+            numReflcs: 6,
+            delayOffset: 0.02,
+            scaleDelays: 1,
+            spread: 1,
             reflPan: Rand(-1,1),
-            lpfRefl: \lpfRefl.kr(0.7), 
+            lpfRefl: \lpfRefl.kr(0.7),
             hpfRefl: \hpfRefl.kr(40),
         );
 
         conv = PartConv.ar(input, ~fftsize, ~irspectra.collect({|it| it.bufnum }));
         conv = conv * 0.8 ;
-        
+
         Mix([
             DelayN.ar( input, dcompen, dcompen )  * \dry.kr(1),
             DelayN.ar( er, dcompen, dcompen )  * \er.kr(1),
@@ -797,6 +797,7 @@ ServerBoot.add(~genMaster, \default);
 }; // genConvNdef;
 
 
+/*
 
 ~genReverb = {
     "--- genReverb ---".postln;
@@ -809,6 +810,8 @@ ServerBoot.add(~genMaster, \default);
 
 
 ServerBoot.add(~genReverb, \default);
+
+*/
 
 
 
